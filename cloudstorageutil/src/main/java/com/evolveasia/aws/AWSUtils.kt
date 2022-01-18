@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil
+package com.evolveasia.aws
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,7 +11,6 @@ import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtilityOptions
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
-import com.evolveasia.cloudstorageutil.utils.*
 import java.io.*
 
 class AWSUtils(

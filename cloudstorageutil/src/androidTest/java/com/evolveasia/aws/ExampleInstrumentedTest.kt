@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil
+package com.evolveasia.aws
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

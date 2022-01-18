@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil.utils
+package com.evolveasia.aws
 
 import android.graphics.Bitmap
 import org.json.JSONObject

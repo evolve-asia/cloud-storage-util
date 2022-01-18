@@ -20,7 +20,8 @@ import android.widget.ProgressBar
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
-import com.evolveasia.cloudstorageutil.utils.AwsMetaInfo
+import com.evolveasia.aws.AWSUtils
+import com.evolveasia.aws.AwsMetaInfo
 import pub.devrel.easypermissions.EasyPermissions
 import pub.devrel.easypermissions.PermissionRequest
 import java.net.URISyntaxException
@@ -110,7 +111,6 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         if (resultCode == Activity.RESULT_OK && requestCode == 100) {
             val imageUri = data?.data
             val path: String? = getPath(imageUri!!)
-
             val awsConfig = AwsMetaInfo.AWSConfig(
                 BUCKET_NAME,
                 COGNITO_IDENTITY_ID,
@@ -152,7 +152,8 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
             when {
                 isExternalStorageDocument(uri) -> {
                     val docId = DocumentsContract.getDocumentId(uri)
-                    val split = docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    val split =
+                        docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                     return Environment.getExternalStorageDirectory().toString() + "/" + split[1]
                 }
                 isDownloadsDocument(uri) -> {
@@ -168,7 +169,8 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                 }
                 isMediaDocument(uri) -> {
                     val docId = DocumentsContract.getDocumentId(uri)
-                    val split = docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    val split =
+                        docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                     val type = split[0]
                     when (type) {
                         "image" -> {

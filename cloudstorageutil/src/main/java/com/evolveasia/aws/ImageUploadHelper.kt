@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil.utils
+package com.evolveasia.aws
 
 import android.graphics.*
 import java.io.ByteArrayOutputStream

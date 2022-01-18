@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil.utils
+package com.evolveasia.aws
 
 internal object AwsConstant {
     const val DEFAULT_IMAGE_WIDTH = 500

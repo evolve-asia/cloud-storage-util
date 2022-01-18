@@ -57,9 +57,9 @@ afterEvaluate {
         publications {
             release(MavenPublication) {
                 from components.release
-                groupId = 'com.github.chettrir1'
-                artifactId = 'cloud-storage-util'
-                version = '2.0.3'
+                groupId = 'com.github.evolve-asia'
+                artifactId = 'CloudStorageUtil'
+                version = '2.0.0'
             }
         }
     }

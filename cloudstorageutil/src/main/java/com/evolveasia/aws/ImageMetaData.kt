@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil.utils
+package com.evolveasia.aws
 
 interface ImageMetaData {
     fun getLat(): Double

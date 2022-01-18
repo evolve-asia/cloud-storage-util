@@ -1,4 +1,4 @@
-package com.evolveasia.cloudstorageutil
+package com.evolveasia.aws
 
 import org.junit.Test
 

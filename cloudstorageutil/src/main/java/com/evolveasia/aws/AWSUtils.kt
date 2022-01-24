@@ -14,7 +14,6 @@ import com.amazonaws.services.s3.AmazonS3Client
 import java.io.*
 
 class AWSUtils(
-    private val awsMetaInfo: AwsMetaInfo,
     private val context: Context,
     val onAwsImageUploadListener: OnAwsImageUploadListener,
 ) {
@@ -22,6 +21,7 @@ class AWSUtils(
     private var mTransferUtility: TransferUtility? = null
     private var sS3Client: AmazonS3Client? = null
     private var sCredProvider: CognitoCachingCredentialsProvider? = null
+    private lateinit var awsMetaInfo: AwsMetaInfo
 
     private fun getCredProvider(context: Context): CognitoCachingCredentialsProvider? {
         if (sCredProvider == null) {
@@ -61,7 +61,8 @@ class AWSUtils(
         return mTransferUtility
     }
 
-    fun beginUpload() {
+    fun beginUpload(awsMetaInfo: AwsMetaInfo) {
+        this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
             onAwsImageUploadListener.onError("Could not find the filepath of the selected file")
             return

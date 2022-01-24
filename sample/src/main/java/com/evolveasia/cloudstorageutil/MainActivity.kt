@@ -58,8 +58,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                         this,
                         1000,
                         WRITE_EXTERNAL_STORAGE
-                    )
-                        .setRationale("requires storage permission")
+                    ).setRationale("requires storage permission")
                         .setPositiveButtonText("Grant")
                         .setNegativeButtonText("Cancel")
                         .build()
@@ -128,7 +127,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                     waterMarkInfo = getWaterMarkInfo()
                 }
             }.build()
-            AWSUtils(gcsMetaData, this, this).beginUpload()
+            AWSUtils(this, this).beginUpload(gcsMetaData)
         }
     }
 

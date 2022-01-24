@@ -61,7 +61,7 @@ class AWSUtils(
         return mTransferUtility
     }
 
-    fun beginUpload(awsMetaInfo: AwsMetaInfo) {
+  fun beginUpload(awsMetaInfo: AwsMetaInfo, onSuccess:(String) -> Unit) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
             onAwsImageUploadListener.onError("Could not find the filepath of the selected file")
@@ -94,14 +94,14 @@ class AWSUtils(
                 awsMetaInfo.serviceConfig.bucketName, //Bucket name
                 "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
             )
-            observer?.setTransferListener(UploadListener())
+            observer?.setTransferListener(UploadListener(onSuccess))
         } catch (e: Exception) {
             e.printStackTrace()
             onAwsImageUploadListener.onError(e.message.toString())
         }
     }
 
-    private inner class UploadListener : TransferListener {
+    private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {
         override fun onError(id: Int, e: Exception) {
             onAwsImageUploadListener.onError(e.message.toString())
         }
@@ -119,6 +119,7 @@ class AWSUtils(
                 val finalImageUrl =
                     "${awsMetaInfo.serviceConfig.url}${awsMetaInfo.awsFolderPath}/${imageFile?.name}"
                 onAwsImageUploadListener.onSuccess(finalImageUrl)
+                onSuccess(finalImageUrl)
             } else if (newState == TransferState.CANCELED || newState == TransferState.FAILED) {
                 onAwsImageUploadListener.onError("Error in uploading file.")
             }

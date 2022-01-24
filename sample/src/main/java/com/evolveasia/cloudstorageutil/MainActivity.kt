@@ -14,7 +14,6 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
-import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import androidx.annotation.RequiresApi
@@ -40,6 +39,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         private const val COGNITO_REGION: String = "YOUR_COGNITO_REGION"
         private const val S3_URL: String = "https://$BUCKET_NAME.s3.$COGNITO_REGION.amazonaws.com/"
     }
+    private var imageUrlList = mutableListOf<Uri?>()
 
     override
     fun onCreate(savedInstanceState: Bundle?) {
@@ -72,19 +72,18 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
     }
 
     override fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float) {
-        val value = currentByte / totalByte
+     /*   val value = currentByte / totalByte
         val percentage = value * 100
-        println("byte percentage---->${percentage.toInt()}")
+        println("byte percentage---->${percentage.toInt()}")*/
     }
 
     override fun onSuccess(imgUrl: String) {
         progressBar?.visibility = View.GONE
-        Log.v("imageUrl", imgUrl)
+        println("ImageUrl-----------------------> $imgUrl  ------> ${System.currentTimeMillis()}")
     }
 
     override fun onError(errorMsg: String) {
         progressBar?.visibility = View.GONE
-        Log.v("imageUrl", errorMsg)
     }
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
@@ -108,26 +107,37 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == Activity.RESULT_OK && requestCode == 100) {
-            val imageUri = data?.data
-            val path: String? = getPath(imageUri!!)
-            val awsConfig = AwsMetaInfo.AWSConfig(
-                BUCKET_NAME,
-                COGNITO_IDENTITY_ID,
-                COGNITO_REGION,
-                S3_URL
-            )
-            val gcsMetaData = AwsMetaInfo.Builder().apply {
-                serviceConfig = awsConfig
-                this.awsFolderPath = "${getStoragePath()}"
-                imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
-                    this.imagePath = path!!
-                    this.mediaType = "image/jpeg"
-                    compressLevel = 80
-                    compressFormat = Bitmap.CompressFormat.JPEG
-                    waterMarkInfo = getWaterMarkInfo()
+            val uri = data?.data
+            if (imageUrlList.size != 3) {
+                imageUrlList.add(uri)
+            }
+            if (imageUrlList.size == 3) {
+                imageUrlList.forEach {
+                    val path: String? = getPath(it!!)
+                    val awsConfig = AwsMetaInfo.AWSConfig(
+                        BUCKET_NAME,
+                        COGNITO_IDENTITY_ID,
+                        COGNITO_REGION,
+                        S3_URL
+                    )
+                    val gcsMetaData = AwsMetaInfo.Builder().apply {
+                        serviceConfig = awsConfig
+                        this.awsFolderPath = "${getStoragePath()}"
+                        imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
+                            this.imagePath = path!!
+                            this.mediaType = "image/jpeg"
+                            compressLevel = 80
+                            compressFormat = Bitmap.CompressFormat.JPEG
+                            waterMarkInfo = getWaterMarkInfo()
+                        }
+                    }.build()
+
+                    val awsUtil = AWSUtils(this, this)
+                    awsUtil.beginUpload(gcsMetaData) { url->
+                        println("Uri itttttttt -> $url")
+                    }
                 }
-            }.build()
-            AWSUtils(this, this).beginUpload(gcsMetaData)
+            }
         }
     }
 

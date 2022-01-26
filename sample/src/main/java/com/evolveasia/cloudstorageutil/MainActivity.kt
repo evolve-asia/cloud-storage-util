@@ -122,7 +122,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                     )
                     val gcsMetaData = AwsMetaInfo.Builder().apply {
                         serviceConfig = awsConfig
-                        this.awsFolderPath = "${getStoragePath()}"
+                        this.awsFolderPath = getStoragePath()
                         imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
                             this.imagePath = path!!
                             this.mediaType = "image/jpeg"
@@ -131,9 +131,8 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                             waterMarkInfo = getWaterMarkInfo()
                         }
                     }.build()
-
                     val awsUtil = AWSUtils(this, this)
-                    awsUtil.beginUpload(gcsMetaData) { url->
+                    awsUtil.beginUpload(gcsMetaData) { url ->
                         println("Uri itttttttt -> $url")
                     }
                 }

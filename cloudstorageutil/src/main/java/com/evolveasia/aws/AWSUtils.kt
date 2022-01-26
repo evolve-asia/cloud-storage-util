@@ -61,7 +61,7 @@ class AWSUtils(
         return mTransferUtility
     }
 
-  fun beginUpload(awsMetaInfo: AwsMetaInfo, onSuccess:(String) -> Unit) {
+    fun beginUpload(awsMetaInfo: AwsMetaInfo, onSuccess: (String) -> Unit) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
             onAwsImageUploadListener.onError("Could not find the filepath of the selected file")

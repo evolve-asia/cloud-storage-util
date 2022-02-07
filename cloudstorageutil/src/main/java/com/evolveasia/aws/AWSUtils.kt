@@ -116,7 +116,7 @@ class AWSUtils(
                 onAwsImageUploadListener.onSuccess(finalImageUrl)
                 onSuccess(finalImageUrl)
             } else if (newState == TransferState.CANCELED || newState == TransferState.FAILED) {
-                onAwsImageUploadListener.onError("Error in uploading file.")
+                onAwsImageUploadListener.onStateChanged(getState(newState))
             }
         }
     }
@@ -155,10 +155,21 @@ class AWSUtils(
         }
     }
 
+    private fun getState(newState: TransferState): String {
+        return when (newState) {
+            TransferState.CANCELED -> AWSTransferState.STATE_CANCELED
+            TransferState.COMPLETED -> AWSTransferState.STATE_COMPLETED
+            TransferState.FAILED -> AWSTransferState.STATE_FAILED
+            else -> AWSTransferState.STATE_UNKNOWN
+        }
+
+    }
+
     interface OnAwsImageUploadListener {
         fun showProgress()
         fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float)
         fun onSuccess(imgUrl: String)
         fun onError(errorMsg: String)
+        fun onStateChanged(state: String)
     }
 }

@@ -39,6 +39,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         private const val COGNITO_REGION: String = "YOUR_COGNITO_REGION"
         private const val S3_URL: String = "https://$BUCKET_NAME.s3.$COGNITO_REGION.amazonaws.com/"
     }
+
     private var imageUrlList = mutableListOf<Uri?>()
 
     override
@@ -72,9 +73,9 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
     }
 
     override fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float) {
-     /*   val value = currentByte / totalByte
-        val percentage = value * 100
-        println("byte percentage---->${percentage.toInt()}")*/
+        /*   val value = currentByte / totalByte
+           val percentage = value * 100
+           println("byte percentage---->${percentage.toInt()}")*/
     }
 
     override fun onSuccess(imgUrl: String) {
@@ -84,6 +85,10 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
 
     override fun onError(errorMsg: String) {
         progressBar?.visibility = View.GONE
+    }
+
+    override fun onStateChanged(state: String) {
+
     }
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {

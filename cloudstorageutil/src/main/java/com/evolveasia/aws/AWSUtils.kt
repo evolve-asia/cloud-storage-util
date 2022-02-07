@@ -48,7 +48,7 @@ class AWSUtils(
     private fun getTransferUtility(context: Context): TransferUtility? {
         if (mTransferUtility == null) {
             val tuOptions = TransferUtilityOptions()
-            tuOptions.transferThreadPoolSize = 10 // 10 threads for upload and download operations.
+            tuOptions.transferThreadPoolSize = 1 // 10 threads for upload and download operations.
 
             // Initializes TransferUtility
             mTransferUtility = TransferUtility

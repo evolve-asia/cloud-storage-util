@@ -89,16 +89,11 @@ class AWSUtils(
         imageFile = file
         onAwsImageUploadListener.showProgress()
 
-        try {
-            val observer = getTransferUtility(context)?.upload(
-                awsMetaInfo.serviceConfig.bucketName, //Bucket name
-                "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
-            )
-            observer?.setTransferListener(UploadListener(onSuccess))
-        } catch (e: Exception) {
-            e.printStackTrace()
-            onAwsImageUploadListener.onError(e.message.toString())
-        }
+        val observer = getTransferUtility(context)?.upload(
+            awsMetaInfo.serviceConfig.bucketName, //Bucket name
+            "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
+        )
+        observer?.setTransferListener(UploadListener(onSuccess))
     }
 
     private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {

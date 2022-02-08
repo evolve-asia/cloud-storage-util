@@ -1,34 +1,27 @@
 package com.evolveasia.cloudstorageutil
 
-import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.ContentUris
 import android.content.Intent
 import android.database.Cursor
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
-import android.provider.Settings
 import android.view.View
 import android.widget.ProgressBar
-import androidx.annotation.RequiresApi
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
+import com.evolve.cameralib.EvolveImagePicker
 import com.evolveasia.aws.AWSUtils
 import com.evolveasia.aws.AwsMetaInfo
-import pub.devrel.easypermissions.EasyPermissions
-import pub.devrel.easypermissions.PermissionRequest
 import java.net.URISyntaxException
 
-
-open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener,
-    EasyPermissions.PermissionCallbacks,
-    EasyPermissions.RationaleCallbacks {
+open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener{
 
     private var progressBar: ProgressBar? = null
 
@@ -42,6 +35,44 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
 
     private var imageUrlList = mutableListOf<Uri?>()
 
+    private val evolveActivityResultLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val photoUri: Uri? = result.data?.data
+            if (photoUri != null) {
+                if (imageUrlList.size != 3) {
+                    imageUrlList.add(photoUri)
+                }
+                if (imageUrlList.size == 3) {
+                    imageUrlList.forEach {
+                        val path: String? = getPath(it!!)
+                        val awsConfig = AwsMetaInfo.AWSConfig(
+                            BUCKET_NAME,
+                            COGNITO_IDENTITY_ID,
+                            COGNITO_REGION,
+                            S3_URL
+                        )
+                        val gcsMetaData = AwsMetaInfo.Builder().apply {
+                            serviceConfig = awsConfig
+                            this.awsFolderPath = getStoragePath()
+                            imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
+                                this.imagePath = path!!
+                                this.mediaType = "image/jpeg"
+                                compressLevel = 80
+                                compressFormat = Bitmap.CompressFormat.JPEG
+                                waterMarkInfo = getWaterMarkInfo()
+                            }
+                        }.build()
+                        val awsUtil = AWSUtils(this, this)
+                        awsUtil.beginUpload(gcsMetaData) { url ->
+                            println("Uri itttttttt -> $url")
+                        }
+                    }
+                }
+            }
+        }
+
     override
     fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,22 +80,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
 
         progressBar = findViewById(R.id.progressBar)
         findViewById<AppCompatButton>(R.id.btn_upload).setOnClickListener {
-            //Handle runtime permission
-            if (hasExternalStorageWritePermission()) {
-                //Open gallery to pick image
-                openGallery()
-            } else {
-                EasyPermissions.requestPermissions(
-                    PermissionRequest.Builder(
-                        this,
-                        1000,
-                        WRITE_EXTERNAL_STORAGE
-                    ).setRationale("requires storage permission")
-                        .setPositiveButtonText("Grant")
-                        .setNegativeButtonText("Cancel")
-                        .build()
-                )
-            }
+            openCamera()
         }
     }
 
@@ -91,58 +107,13 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
 
     }
 
-    override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
-        openGallery()
-    }
-
-    override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
-    }
-
-    override fun onRationaleAccepted(requestCode: Int) {
-    }
-
-    override fun onRationaleDenied(requestCode: Int) {
-    }
-
-    private fun openGallery() {
-        val gallery = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI)
-        startActivityForResult(gallery, 100)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == Activity.RESULT_OK && requestCode == 100) {
-            val uri = data?.data
-            if (imageUrlList.size != 3) {
-                imageUrlList.add(uri)
-            }
-            if (imageUrlList.size == 3) {
-                imageUrlList.forEach {
-                    val path: String? = getPath(it!!)
-                    val awsConfig = AwsMetaInfo.AWSConfig(
-                        BUCKET_NAME,
-                        COGNITO_IDENTITY_ID,
-                        COGNITO_REGION,
-                        S3_URL
-                    )
-                    val gcsMetaData = AwsMetaInfo.Builder().apply {
-                        serviceConfig = awsConfig
-                        this.awsFolderPath = getStoragePath()
-                        imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
-                            this.imagePath = path!!
-                            this.mediaType = "image/jpeg"
-                            compressLevel = 80
-                            compressFormat = Bitmap.CompressFormat.JPEG
-                            waterMarkInfo = getWaterMarkInfo()
-                        }
-                    }.build()
-                    val awsUtil = AWSUtils(this, this)
-                    awsUtil.beginUpload(gcsMetaData) { url ->
-                        println("Uri itttttttt -> $url")
-                    }
-                }
-            }
-        }
+    private fun openCamera() {
+        EvolveImagePicker
+            .with(this)
+            .start(
+                evolveActivityResultLauncher,
+                forceImageCapture = true
+            )
     }
 
     private fun getWaterMarkInfo(): AwsMetaInfo.WaterMarkInfo {
@@ -230,21 +201,6 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
 
     private fun isMediaDocument(uri: Uri): Boolean {
         return "com.android.providers.media.documents" == uri.authority
-    }
-
-    private fun hasExternalStorageWritePermission(): Boolean {
-        return EasyPermissions.hasPermissions(
-            this,
-            WRITE_EXTERNAL_STORAGE
-        )
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
-    private fun hasManageExternalStoragePermission(): Boolean {
-        return EasyPermissions.hasPermissions(
-            this,
-            Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
-        )
     }
 
     private fun getStoragePath(): String {

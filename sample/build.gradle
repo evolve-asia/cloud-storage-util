@@ -36,6 +36,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.4.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.2'
+    implementation 'com.github.saugatrai33:EvolveCamera:3.0.7'
 
     //Easy Permission
     implementation 'pub.devrel:easypermissions:3.0.0'

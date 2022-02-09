@@ -8,10 +8,7 @@ import android.text.TextUtils
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.Protocol
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
-import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener
-import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
-import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility
-import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtilityOptions
+import com.amazonaws.mobileconnectors.s3.transferutility.*
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
@@ -39,9 +36,10 @@ class AWSUtils(
     }
 
     private fun getS3Client(context: Context?): AmazonS3Client? {
+        TransferNetworkLossHandler.getInstance(context)
         val configuration = ClientConfiguration()
         configuration.maxErrorRetry = 3
-        configuration.connectionTimeout = 60* 1000
+        configuration.connectionTimeout = 60 * 1000
         configuration.socketTimeout = 60 * 1000
         configuration.protocol = Protocol.HTTP
         configuration.maxConnections = 10

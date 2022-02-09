@@ -6,7 +6,6 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.text.TextUtils
 import com.amazonaws.ClientConfiguration
-import com.amazonaws.Protocol
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobileconnectors.s3.transferutility.*
 import com.amazonaws.regions.Region
@@ -18,11 +17,14 @@ class AWSUtils(
     private val context: Context,
     val onAwsImageUploadListener: OnAwsImageUploadListener,
 ) {
+    private var observer: TransferObserver? = null
     private var imageFile: File? = null
     private var mTransferUtility: TransferUtility? = null
     private var sS3Client: AmazonS3Client? = null
     private var sCredProvider: CognitoCachingCredentialsProvider? = null
     private lateinit var awsMetaInfo: AwsMetaInfo
+    private val MAX_RETRY_COUNT: Int = 2
+    private var retryCount = 0
 
     private fun getCredProvider(context: Context): CognitoCachingCredentialsProvider? {
         if (sCredProvider == null) {
@@ -37,17 +39,18 @@ class AWSUtils(
 
     private fun getS3Client(context: Context?): AmazonS3Client? {
         val timeoutConnection = 60000
-        val configuration = ClientConfiguration()
-        configuration.maxErrorRetry = 2
-        configuration.connectionTimeout = timeoutConnection
-        configuration.socketTimeout = timeoutConnection
-        configuration.protocol = Protocol.HTTP
+
+        val clientConfiguration = ClientConfiguration().apply {
+            maxErrorRetry = 3
+            connectionTimeout = timeoutConnection
+            socketTimeout = timeoutConnection
+        }
+
         if (sS3Client == null) {
             sS3Client =
                 AmazonS3Client(
                     getCredProvider(context!!),
-                    Region.getRegion(awsMetaInfo.serviceConfig.region),
-                    configuration
+                    Region.getRegion(awsMetaInfo.serviceConfig.region), clientConfiguration
                 )
         }
         return sS3Client
@@ -56,7 +59,8 @@ class AWSUtils(
     private fun getTransferUtility(context: Context): TransferUtility? {
         if (mTransferUtility == null) {
             val tuOptions = TransferUtilityOptions()
-            tuOptions.transferThreadPoolSize = 1 // 10 threads for upload and download operations.
+            tuOptions.transferThreadPoolSize = 10
+            // 10 threads for upload and download operations.
 
             // Initializes TransferUtility
             mTransferUtility = TransferUtility
@@ -147,7 +151,7 @@ class AWSUtils(
         imageFile = file
         onAwsImageUploadListener.showProgress()
 
-        val observer = getTransferUtility(context)?.upload(
+        observer = getTransferUtility(context)?.upload(
             awsMetaInfo.serviceConfig.bucketName, //Bucket name
             "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
         )
@@ -173,8 +177,16 @@ class AWSUtils(
                     "${awsMetaInfo.serviceConfig.url}${awsMetaInfo.awsFolderPath}/${imageFile?.name}"
                 onAwsImageUploadListener.onSuccess(finalImageUrl)
                 onSuccess(finalImageUrl)
-            } else if (newState == TransferState.CANCELED || newState == TransferState.FAILED) {
+            } else if (newState == TransferState.CANCELED) {
                 onAwsImageUploadListener.onStateChanged(getState(newState))
+            } else if (newState == TransferState.FAILED) {
+                if (retryCount != MAX_RETRY_COUNT) {
+                    retryCount += 1
+                    observer = mTransferUtility?.resume(id)
+                    observer?.setTransferListener(this)
+                } else {
+                    onAwsImageUploadListener.onStateChanged(getState(newState))
+                }
             }
         }
     }

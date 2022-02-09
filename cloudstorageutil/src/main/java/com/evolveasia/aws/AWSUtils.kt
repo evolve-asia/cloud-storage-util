@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.text.TextUtils
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.Protocol
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
@@ -37,11 +39,18 @@ class AWSUtils(
     }
 
     private fun getS3Client(context: Context?): AmazonS3Client? {
+        val configuration = ClientConfiguration()
+        configuration.maxErrorRetry = 3
+        configuration.connectionTimeout = 60* 1000
+        configuration.socketTimeout = 60 * 1000
+        configuration.protocol = Protocol.HTTP
+        configuration.maxConnections = 10
         if (sS3Client == null) {
             sS3Client =
                 AmazonS3Client(
                     getCredProvider(context!!),
-                    Region.getRegion(awsMetaInfo.serviceConfig.region)
+                    Region.getRegion(awsMetaInfo.serviceConfig.region),
+                    configuration
                 )
         }
         return sS3Client
@@ -121,21 +130,21 @@ class AWSUtils(
                 awsMetaInfo.imageMetaInfo.imagePath = compressedImagePath
             }
         }
-      /*  if (compressedBitmap != null) {
-            val newBitmap = Bitmap.createBitmap(
-                compressedBitmap,
-                0,
-                0,
-                compressedBitmap.width,
-                compressedBitmap.height
-            )
-            if (newBitmap != null) {
-                // newBitmap will be recycled inside addAwsWaterMark function
-                val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, newBitmap)
-                waterMarkBitmap.recycle()
-            }
-            compressedBitmap.recycle()
-        }*/
+        /*  if (compressedBitmap != null) {
+              val newBitmap = Bitmap.createBitmap(
+                  compressedBitmap,
+                  0,
+                  0,
+                  compressedBitmap.width,
+                  compressedBitmap.height
+              )
+              if (newBitmap != null) {
+                  // newBitmap will be recycled inside addAwsWaterMark function
+                  val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, newBitmap)
+                  waterMarkBitmap.recycle()
+              }
+              compressedBitmap.recycle()
+          }*/
 
         val file = File(awsMetaInfo.imageMetaInfo.imagePath)
         imageFile = file

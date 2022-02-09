@@ -36,13 +36,12 @@ class AWSUtils(
     }
 
     private fun getS3Client(context: Context?): AmazonS3Client? {
-        TransferNetworkLossHandler.getInstance(context)
+        val timeoutConnection = 60000
         val configuration = ClientConfiguration()
-        configuration.maxErrorRetry = 3
-        configuration.connectionTimeout = 60 * 1000
-        configuration.socketTimeout = 60 * 1000
+        configuration.maxErrorRetry = 2
+        configuration.connectionTimeout = timeoutConnection
+        configuration.socketTimeout = timeoutConnection
         configuration.protocol = Protocol.HTTP
-        configuration.maxConnections = 10
         if (sS3Client == null) {
             sS3Client =
                 AmazonS3Client(

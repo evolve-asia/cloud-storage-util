@@ -21,9 +21,10 @@ import com.evolveasia.aws.AWSUtils
 import com.evolveasia.aws.AwsMetaInfo
 import java.net.URISyntaxException
 
-open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener{
+open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener {
 
     private var progressBar: ProgressBar? = null
+    private val awsUtil by lazy { AWSUtils(this, this) }
 
     companion object {
         private const val COGNITO_IDENTITY_ID: String =
@@ -64,7 +65,6 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                                 waterMarkInfo = getWaterMarkInfo()
                             }
                         }.build()
-                        val awsUtil = AWSUtils(this, this)
                         awsUtil.beginUpload(gcsMetaData) { url ->
                             println("Uri itttttttt -> $url")
                         }
@@ -81,6 +81,18 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         progressBar = findViewById(R.id.progressBar)
         findViewById<AppCompatButton>(R.id.btn_upload).setOnClickListener {
             openCamera()
+        }
+        findViewById<AppCompatButton>(R.id.btn_read_folder).setOnClickListener {
+            awsUtil.listAllTheObjects(
+                BUCKET_NAME,
+                COGNITO_REGION,
+                COGNITO_IDENTITY_ID,
+                "FOLDER PATH HERE WITH"
+            ) { dataList ->
+                dataList.forEach { item ->
+                    println("S3 image url--------> ${item.baseUrl}/${item.key}")
+                }
+            }
         }
     }
 

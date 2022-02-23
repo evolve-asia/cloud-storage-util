@@ -11,7 +11,10 @@ import com.amazonaws.mobileconnectors.s3.transferutility.*
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
+import com.amazonaws.services.s3.model.ListObjectsV2Request
+import com.amazonaws.services.s3.model.ListObjectsV2Result
 import java.io.*
+
 
 class AWSUtils(
     private val context: Context,
@@ -225,6 +228,15 @@ class AWSUtils(
         }
     }
 
+    private fun getRegion(region: String): Regions {
+        return when (region) {
+            "ap-southeast-1" -> Regions.AP_SOUTHEAST_1
+            "ap-south-1" -> Regions.AP_SOUTH_1
+            "ap-east-1" -> Regions.AP_EAST_1
+            else -> throw IllegalArgumentException("Invalid region : add other region if required (Cloud storage util library)")
+        }
+    }
+
     private fun getState(newState: TransferState): String {
         return when (newState) {
             TransferState.CANCELED -> AWSTransferState.STATE_CANCELED
@@ -234,7 +246,7 @@ class AWSUtils(
         }
     }
 
-    fun getRotation(exifOrientation: Int): Float? {
+    private fun getRotation(exifOrientation: Int): Float? {
         return when (exifOrientation) {
             ExifInterface.ORIENTATION_ROTATE_180 -> 180f
             ExifInterface.ORIENTATION_ROTATE_270 -> 270f
@@ -263,6 +275,64 @@ class AWSUtils(
             )
         }
         return null
+    }
+
+    fun listAllTheObjects(
+        bucket: String,
+        region: String,
+        poolId: String,
+        folderPath: String,
+        onSuccess: (List<S3ObjectSummary>) -> Unit
+    ) {
+        val req = ListObjectsV2Request().withBucketName(bucket).withPrefix(folderPath)
+//            .withDelimiter("")
+        val timeoutConnection = 60000
+        val clientConfiguration = ClientConfiguration().apply {
+            maxErrorRetry = 3
+            connectionTimeout = timeoutConnection
+            socketTimeout = timeoutConnection
+        }
+
+        if (sCredProvider == null) {
+            sCredProvider = CognitoCachingCredentialsProvider(
+                context.applicationContext,
+                poolId,
+                getRegion(region)
+            )
+        }
+
+        if (sS3Client == null) {
+            sS3Client =
+                AmazonS3Client(
+                    getCredProvider(context),
+                    Region.getRegion(region), clientConfiguration
+                )
+        }
+
+        Thread {
+            val listing: ListObjectsV2Result =
+                sS3Client!!.listObjectsV2(req)
+            for (commonPrefix in listing.commonPrefixes) {
+                println("Common prefix--->$commonPrefix")
+            }
+            val objectList = mutableListOf<S3ObjectSummary>()
+            for (summary in listing.objectSummaries) {
+                val baseUrl = "https://$bucket.s3.$region.amazonaws.com"
+                objectList.add(
+                    S3ObjectSummary(
+                        key = summary.key,
+                        eTag = summary.eTag,
+                        lastModified = summary.lastModified,
+                        storageClass = summary.storageClass,
+                        owner = summary.owner?.displayName,
+                        ownerId = summary.owner?.id,
+                        size = summary.size,
+                        baseUrl = baseUrl
+                    )
+                )
+            }
+            onSuccess(objectList)
+        }.start()
     }
 
     interface OnAwsImageUploadListener {

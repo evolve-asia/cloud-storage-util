@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Aws Integration</string>
     <string name="choose_and_upload">Choose and Upload</string>
+    <string name="read_all_the_files">Read All the files</string>
 </resources>

@@ -310,28 +310,34 @@ class AWSUtils(
         }
 
         Thread {
-            val listing: ListObjectsV2Result =
-                sS3Client!!.listObjectsV2(req)
-            for (commonPrefix in listing.commonPrefixes) {
-                println("Common prefix--->$commonPrefix")
-            }
-            val objectList = mutableListOf<S3ObjectSummary>()
-            for (summary in listing.objectSummaries) {
-                val baseUrl = "https://$bucket.s3.$region.amazonaws.com"
-                objectList.add(
-                    S3ObjectSummary(
-                        key = summary.key,
-                        eTag = summary.eTag,
-                        lastModified = summary.lastModified,
-                        storageClass = summary.storageClass,
-                        owner = summary.owner?.displayName,
-                        ownerId = summary.owner?.id,
-                        size = summary.size,
-                        baseUrl = baseUrl
+            try {
+                val listing: ListObjectsV2Result =
+                    sS3Client!!.listObjectsV2(req)
+                for (commonPrefix in listing.commonPrefixes) {
+                    println("Common prefix--->$commonPrefix")
+                }
+                val objectList = mutableListOf<S3ObjectSummary>()
+                for (summary in listing.objectSummaries) {
+                    val baseUrl = "https://$bucket.s3.$region.amazonaws.com"
+                    objectList.add(
+                        S3ObjectSummary(
+                            key = summary.key,
+                            eTag = summary.eTag,
+                            lastModified = summary.lastModified,
+                            storageClass = summary.storageClass,
+                            owner = summary.owner?.displayName,
+                            ownerId = summary.owner?.id,
+                            size = summary.size,
+                            baseUrl = baseUrl
+                        )
                     )
-                )
+                }
+                onSuccess(objectList)
+            } catch (error: Exception) {
+                error.printStackTrace()
+                onSuccess(listOf())
             }
-            onSuccess(objectList)
+
         }.start()
     }
 

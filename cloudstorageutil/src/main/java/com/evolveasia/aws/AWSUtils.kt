@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.text.TextUtils
+import android.util.Log
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobileconnectors.s3.transferutility.*
@@ -14,7 +15,6 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.ListObjectsV2Request
 import com.amazonaws.services.s3.model.ListObjectsV2Result
 import java.io.*
-
 
 class AWSUtils(
     private val context: Context,
@@ -26,8 +26,11 @@ class AWSUtils(
     private var sS3Client: AmazonS3Client? = null
     private var sCredProvider: CognitoCachingCredentialsProvider? = null
     private lateinit var awsMetaInfo: AwsMetaInfo
-    private val MAX_RETRY_COUNT: Int = 2
     private var retryCount = 0
+
+    companion object {
+        private const val MAX_RETRY_COUNT: Int = 2
+    }
 
     private fun getCredProvider(context: Context): CognitoCachingCredentialsProvider? {
         if (sCredProvider == null) {
@@ -76,7 +79,11 @@ class AWSUtils(
         return mTransferUtility
     }
 
-    fun beginUpload(awsMetaInfo: AwsMetaInfo, onSuccess: (String) -> Unit) {
+    fun beginUpload(
+        awsMetaInfo: AwsMetaInfo,
+        onSuccess: (String) -> Unit,
+        onError: (String, AwsMetaInfo) -> Unit
+    ) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
             onAwsImageUploadListener.onError("Could not find the filepath of the selected file")
@@ -87,52 +94,54 @@ class AWSUtils(
         val compressedImagePath = compressAwsImage(awsMetaInfo).first
         val compressedBitmap = compressAwsImage(awsMetaInfo).second
         val newExifOrientation = setImageOrientation(oldExif, compressedImagePath)
-
-        if (newExifOrientation != null) {
-            try {
-                val rotation = getRotation(newExifOrientation)
-                if (rotation != null) {
-                    val matrix = Matrix()
-                    matrix.postRotate(rotation)
-                    setPostScale(newExifOrientation, matrix)
-                    if (compressedBitmap != null) {
-                        val rotatedBitmap = Bitmap.createBitmap(
-                            compressedBitmap,
-                            0,
-                            0,
-                            compressedBitmap.width,
-                            compressedBitmap.height,
-                            matrix,
-                            true
-                        )
-                        if (rotatedBitmap != null) {
-                            // rotatedBitmap will be recycled inside addAwsWaterMark function
-                            val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, rotatedBitmap)
-                            waterMarkBitmap.recycle()
-                        }
-                        compressedBitmap.recycle()
+        if (newExifOrientation == null) {
+            onError("Cannot change orientation of image. Image may be corrupted.", awsMetaInfo)
+            onAwsImageUploadListener.onError("Cannot change orientation of image. Image may be corrupted.")
+            return
+        }
+        try {
+            val rotation = getRotation(newExifOrientation)
+            if (rotation != null) {
+                val matrix = Matrix()
+                matrix.postRotate(rotation)
+                setPostScale(newExifOrientation, matrix)
+                if (compressedBitmap != null) {
+                    val rotatedBitmap = Bitmap.createBitmap(
+                        compressedBitmap,
+                        0,
+                        0,
+                        compressedBitmap.width,
+                        compressedBitmap.height,
+                        matrix,
+                        true
+                    )
+                    if (rotatedBitmap != null) {
+                        // rotatedBitmap will be recycled inside addAwsWaterMark function
+                        val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, rotatedBitmap)
+                        waterMarkBitmap.recycle()
                     }
-                } else {
-                    if (compressedBitmap != null) {
-                        val newBitmap = Bitmap.createBitmap(
-                            compressedBitmap,
-                            0,
-                            0,
-                            compressedBitmap.width,
-                            compressedBitmap.height
-                        )
-                        if (newBitmap != null) {
-                            // newBitmap will be recycled inside addAwsWaterMark function
-                            val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, newBitmap)
-                            waterMarkBitmap.recycle()
-                        }
-                        compressedBitmap.recycle()
-                    }
+                    compressedBitmap.recycle()
                 }
-            } catch (error: Exception) {
-                error.printStackTrace()
-                awsMetaInfo.imageMetaInfo.imagePath = compressedImagePath
+            } else {
+                if (compressedBitmap != null) {
+                    val newBitmap = Bitmap.createBitmap(
+                        compressedBitmap,
+                        0,
+                        0,
+                        compressedBitmap.width,
+                        compressedBitmap.height
+                    )
+                    if (newBitmap != null) {
+                        // newBitmap will be recycled inside addAwsWaterMark function
+                        val waterMarkBitmap = addAwsWaterMark(awsMetaInfo, newBitmap)
+                        waterMarkBitmap.recycle()
+                    }
+                    compressedBitmap.recycle()
+                }
             }
+        } catch (error: Exception) {
+            error.printStackTrace()
+            awsMetaInfo.imageMetaInfo.imagePath = compressedImagePath
         }
         /*  if (compressedBitmap != null) {
               val newBitmap = Bitmap.createBitmap(
@@ -264,15 +273,21 @@ class AWSUtils(
     }
 
     private fun setImageOrientation(oldExif: ExifInterface, newImagePath: String): Int? {
-        val exifOrientation = oldExif.getAttribute(ExifInterface.TAG_ORIENTATION)
-        if (exifOrientation != null) {
-            val newExif = ExifInterface(newImagePath)
-            newExif.setAttribute(ExifInterface.TAG_ORIENTATION, exifOrientation)
-            newExif.saveAttributes()
-            return newExif.getAttributeInt(
-                ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_UNDEFINED
-            )
+        try {
+            val exifOrientation = oldExif.getAttribute(ExifInterface.TAG_ORIENTATION)
+            if (exifOrientation != null) {
+                val newExif = ExifInterface(newImagePath)
+                newExif.setAttribute(ExifInterface.TAG_ORIENTATION, exifOrientation)
+                newExif.saveAttributes()
+                return newExif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_UNDEFINED
+                )
+            }
+
+        } catch (error: Exception) {
+            error.printStackTrace()
+            return null
         }
         return null
     }

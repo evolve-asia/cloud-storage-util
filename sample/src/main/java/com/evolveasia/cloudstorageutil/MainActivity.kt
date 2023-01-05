@@ -65,9 +65,11 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                                 waterMarkInfo = getWaterMarkInfo()
                             }
                         }.build()
-                        awsUtil.beginUpload(gcsMetaData) { url ->
+                        awsUtil.beginUpload(gcsMetaData, onSuccess = { url ->
                             println("Uri itttttttt -> $url")
-                        }
+                        }, onError = { msg, awsMetaInfo ->
+                            println(msg)
+                        })
                     }
                 }
             }

@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.text.TextUtils
-import android.util.Log
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobileconnectors.s3.transferutility.*
@@ -86,7 +85,11 @@ class AWSUtils(
     ) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
-            onAwsImageUploadListener.onError("Could not find the filepath of the selected file")
+            onError("Could not find the filepath of the selected file", awsMetaInfo)
+            onAwsImageUploadListener.onError(
+                "Could not find the filepath of the selected file",
+                awsMetaInfo
+            )
             return
         }
 
@@ -96,7 +99,10 @@ class AWSUtils(
         val newExifOrientation = setImageOrientation(oldExif, compressedImagePath)
         if (newExifOrientation == null) {
             onError("Cannot change orientation of image. Image may be corrupted.", awsMetaInfo)
-            onAwsImageUploadListener.onError("Cannot change orientation of image. Image may be corrupted.")
+            onAwsImageUploadListener.onError(
+                "Cannot change orientation of image. Image may be corrupted.",
+                awsMetaInfo
+            )
             return
         }
         try {
@@ -172,7 +178,7 @@ class AWSUtils(
 
     private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {
         override fun onError(id: Int, e: Exception) {
-            onAwsImageUploadListener.onError(e.message.toString())
+            onAwsImageUploadListener.onError(e.message.toString(), awsMetaInfo)
         }
 
         override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
@@ -360,7 +366,7 @@ class AWSUtils(
         fun showProgress()
         fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float)
         fun onSuccess(imgUrl: String)
-        fun onError(errorMsg: String)
+        fun onError(errorMsg: String, awsMetaInfo: AwsMetaInfo)
         fun onStateChanged(state: String)
     }
 }

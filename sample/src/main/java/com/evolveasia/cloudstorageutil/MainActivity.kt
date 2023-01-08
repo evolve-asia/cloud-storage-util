@@ -113,7 +113,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         println("ImageUrl-----------------------> $imgUrl  ------> ${System.currentTimeMillis()}")
     }
 
-    override fun onError(errorMsg: String) {
+    override fun onError(errorMsg: String, awsMetaInfo: AwsMetaInfo) {
         progressBar?.visibility = View.GONE
     }
 

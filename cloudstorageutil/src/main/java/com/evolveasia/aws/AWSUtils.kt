@@ -13,6 +13,7 @@ import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.ListObjectsV2Request
 import com.amazonaws.services.s3.model.ListObjectsV2Result
+import com.evolveasia.aws.errors.ImageCorruptedException
 import java.io.*
 
 class AWSUtils(
@@ -81,13 +82,13 @@ class AWSUtils(
     fun beginUpload(
         awsMetaInfo: AwsMetaInfo,
         onSuccess: (String) -> Unit,
-        onError: (String, AwsMetaInfo) -> Unit
+        onError: (Throwable, AwsMetaInfo) -> Unit
     ) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
-            onError("Could not find the filepath of the selected file", awsMetaInfo)
+            onError(FileNotFoundException("Could not find the filepath of the selected file"), awsMetaInfo)
             onAwsImageUploadListener.onError(
-                "Could not find the filepath of the selected file",
+                FileNotFoundException("Could not find the filepath of the selected file"),
                 awsMetaInfo
             )
             return
@@ -98,9 +99,10 @@ class AWSUtils(
         val compressedBitmap = compressAwsImage(awsMetaInfo).second
         val newExifOrientation = setImageOrientation(oldExif, compressedImagePath)
         if (newExifOrientation == null) {
-            onError("Cannot change orientation of image. Image may be corrupted.", awsMetaInfo)
+            onError(
+                ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."), awsMetaInfo)
             onAwsImageUploadListener.onError(
-                "Cannot change orientation of image. Image may be corrupted.",
+                ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
                 awsMetaInfo
             )
             return
@@ -178,7 +180,7 @@ class AWSUtils(
 
     private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {
         override fun onError(id: Int, e: Exception) {
-            onAwsImageUploadListener.onError(e.message.toString(), awsMetaInfo)
+            onAwsImageUploadListener.onError(e, awsMetaInfo)
         }
 
         override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
@@ -366,7 +368,7 @@ class AWSUtils(
         fun showProgress()
         fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float)
         fun onSuccess(imgUrl: String)
-        fun onError(errorMsg: String, awsMetaInfo: AwsMetaInfo)
+        fun onError(error: Throwable, awsMetaInfo: AwsMetaInfo)
         fun onStateChanged(state: String)
     }
 }

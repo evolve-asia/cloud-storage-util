@@ -67,8 +67,8 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                         }.build()
                         awsUtil.beginUpload(gcsMetaData, onSuccess = { url ->
                             println("Uri itttttttt -> $url")
-                        }, onError = { msg, awsMetaInfo ->
-                            println(msg)
+                        }, onError = { error, awsMetaInfo ->
+                            println(error.message)
                         })
                     }
                 }
@@ -113,7 +113,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         println("ImageUrl-----------------------> $imgUrl  ------> ${System.currentTimeMillis()}")
     }
 
-    override fun onError(errorMsg: String, awsMetaInfo: AwsMetaInfo) {
+    override fun onError(error: Throwable, awsMetaInfo: AwsMetaInfo) {
         progressBar?.visibility = View.GONE
     }
 

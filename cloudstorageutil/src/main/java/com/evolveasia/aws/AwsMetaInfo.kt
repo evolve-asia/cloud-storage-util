@@ -24,7 +24,7 @@ class AwsMetaInfo(
     class ImageMetaInfo {
         var imagePath: String by Delegates.notNull()
         var mediaType: String by Delegates.notNull()
-        var metadata: String by Delegates.notNull()
+        var imageExtraParams: List<Pair<String, Any>> = listOf()
         var compressLevel: Int = 100
         var compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG
         var imageWidth: Int? = null

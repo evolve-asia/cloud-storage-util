@@ -8,15 +8,12 @@ internal fun getAwsMetaData(
     awsConfig: AwsMetaInfo.AWSConfig,
     addWatermark: Boolean
 ): AwsMetaInfo {
-    val imageExtraParams = JSONObject()
-    imageExtraParams.put("location", "${image.getLat()},${image.getLng()}")
     return AwsMetaInfo.Builder().apply {
         this.serviceConfig = awsConfig
         this.awsFolderPath = image.getCloudUrl()
         this.imageMetaInfo = AwsMetaInfo.ImageMetaInfo().apply {
             this.imagePath = image.getPathOfImage()
             this.mediaType = AwsMetaInfo.ImageMetaInfo.TYPE_JPEG
-            this.metadata = imageExtraParams.toString()
             this.compressLevel = 80
             this.imageWidth = 1080
             this.imageHeight = 720

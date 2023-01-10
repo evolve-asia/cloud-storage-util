@@ -24,7 +24,7 @@ import java.net.URISyntaxException
 open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener {
 
     private var progressBar: ProgressBar? = null
-    private val awsUtil by lazy { AWSUtils(this, this) }
+    private val awsUtil by lazy { AWSUtils.get() }
 
     companion object {
         private const val COGNITO_IDENTITY_ID: String =
@@ -65,7 +65,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                                 waterMarkInfo = getWaterMarkInfo()
                             }
                         }.build()
-                        awsUtil.beginUpload(gcsMetaData, onSuccess = { url ->
+                        awsUtil?.beginUpload(gcsMetaData, onSuccess = { url ->
                             println("Uri itttttttt -> $url")
                         }, onError = { error, awsMetaInfo ->
                             println(error.message)
@@ -79,13 +79,13 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
     fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        awsUtil?.setListener(this)
         progressBar = findViewById(R.id.progressBar)
         findViewById<AppCompatButton>(R.id.btn_upload).setOnClickListener {
             openCamera()
         }
         findViewById<AppCompatButton>(R.id.btn_read_folder).setOnClickListener {
-            awsUtil.listAllTheObjects(
+            awsUtil?.listAllTheObjects(
                 BUCKET_NAME,
                 COGNITO_REGION,
                 COGNITO_IDENTITY_ID,
@@ -96,6 +96,16 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        awsUtil?.setListener(this)
+    }
+
+    override fun onPause() {
+        awsUtil?.removeListener()
+        super.onPause()
     }
 
     override fun showProgress() {

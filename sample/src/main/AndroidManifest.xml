@@ -28,9 +28,10 @@
             </intent-filter>
         </activity>
 
-<!--        <service-->
-<!--            android:name="com.amazonaws.mobileconnectors.s3.transferutility.TransferService"-->
-<!--            android:enabled="true" />-->
+        <provider
+            android:authorities="${applicationId}.AwsUtilInitializer"
+            android:name="com.evolveasia.aws.initalizer.AwsUtilInitializer"
+            android:exported="false" />
     </application>
 
 </manifest>

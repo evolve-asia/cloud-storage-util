@@ -15,11 +15,15 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request
 import com.amazonaws.services.s3.model.ListObjectsV2Result
 import com.evolveasia.aws.errors.ImageCorruptedException
 import java.io.*
+import java.lang.ref.WeakReference
 
-class AWSUtils(
-    private val context: Context,
-    val onAwsImageUploadListener: OnAwsImageUploadListener,
-) {
+class AWSUtils private constructor(context: Context?) {
+    private var weakContext: WeakReference<Context>? = null
+
+    init {
+        this.weakContext = WeakReference(context)
+    }
+
     private var observer: TransferObserver? = null
     private var imageFile: File? = null
     private var mTransferUtility: TransferUtility? = null
@@ -27,9 +31,35 @@ class AWSUtils(
     private var sCredProvider: CognitoCachingCredentialsProvider? = null
     private lateinit var awsMetaInfo: AwsMetaInfo
     private var retryCount = 0
+    private var onAwsImageUploadListener: OnAwsImageUploadListener? = null
 
     companion object {
         private const val MAX_RETRY_COUNT: Int = 2
+        private var awsUtils: AWSUtils? = null
+
+        @Synchronized
+        internal fun getInstance(context: Context?): AWSUtils? {
+            if (null == awsUtils) {
+                awsUtils = AWSUtils(context)
+            }
+            return awsUtils
+        }
+
+        fun get(): AWSUtils? {
+            return awsUtils
+        }
+    }
+
+    private fun getContext(): Context? {
+        return this.weakContext?.get()
+    }
+
+    fun setListener(onAwsImageUploadListener: OnAwsImageUploadListener) {
+        this.onAwsImageUploadListener = onAwsImageUploadListener
+    }
+
+    fun removeListener() {
+        this.onAwsImageUploadListener = null
     }
 
     private fun getCredProvider(context: Context): CognitoCachingCredentialsProvider? {
@@ -90,7 +120,7 @@ class AWSUtils(
                 FileNotFoundException("Could not find the filepath of the selected file"),
                 awsMetaInfo
             )
-            onAwsImageUploadListener.onError(
+            onAwsImageUploadListener?.onError(
                 FileNotFoundException("Could not find the filepath of the selected file"),
                 awsMetaInfo
             )
@@ -107,7 +137,7 @@ class AWSUtils(
                 ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
                 awsMetaInfo
             )
-            onAwsImageUploadListener.onError(
+            onAwsImageUploadListener?.onError(
                 ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
                 awsMetaInfo
             )
@@ -175,22 +205,24 @@ class AWSUtils(
 
         val file = File(awsMetaInfo.imageMetaInfo.imagePath)
         imageFile = file
-        onAwsImageUploadListener.showProgress()
+        onAwsImageUploadListener?.showProgress()
 
-        observer = getTransferUtility(context)?.upload(
-            awsMetaInfo.serviceConfig.bucketName, //Bucket name
-            "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
-        )
+        observer = getContext()?.let {
+            getTransferUtility(it)?.upload(
+                awsMetaInfo.serviceConfig.bucketName, //Bucket name
+                "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
+            )
+        }
         observer?.setTransferListener(UploadListener(onSuccess))
     }
 
     private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {
         override fun onError(id: Int, e: Exception) {
-            onAwsImageUploadListener.onError(e, awsMetaInfo)
+            onAwsImageUploadListener?.onError(e, awsMetaInfo)
         }
 
         override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
-            onAwsImageUploadListener.onProgressChanged(
+            onAwsImageUploadListener?.onProgressChanged(
                 id,
                 bytesCurrent.toFloat(),
                 bytesTotal.toFloat()
@@ -201,17 +233,17 @@ class AWSUtils(
             if (newState == TransferState.COMPLETED) {
                 val finalImageUrl =
                     "${awsMetaInfo.serviceConfig.url}${awsMetaInfo.awsFolderPath}/${imageFile?.name}"
-                onAwsImageUploadListener.onSuccess(finalImageUrl)
+                onAwsImageUploadListener?.onSuccess(finalImageUrl)
                 onSuccess(finalImageUrl)
             } else if (newState == TransferState.CANCELED) {
-                onAwsImageUploadListener.onStateChanged(getState(newState))
+                onAwsImageUploadListener?.onStateChanged(getState(newState))
             } else if (newState == TransferState.FAILED) {
                 if (retryCount != MAX_RETRY_COUNT) {
                     retryCount += 1
                     observer = mTransferUtility?.resume(id)
                     observer?.setTransferListener(this)
                 } else {
-                    onAwsImageUploadListener.onStateChanged(getState(newState))
+                    onAwsImageUploadListener?.onStateChanged(getState(newState))
                 }
             }
         }
@@ -324,7 +356,7 @@ class AWSUtils(
 
         if (sCredProvider == null) {
             sCredProvider = CognitoCachingCredentialsProvider(
-                context.applicationContext,
+                getContext()?.applicationContext,
                 poolId,
                 getRegion(region)
             )
@@ -333,7 +365,7 @@ class AWSUtils(
         if (sS3Client == null) {
             sS3Client =
                 AmazonS3Client(
-                    getCredProvider(context),
+                    getContext()?.let { getCredProvider(it) },
                     Region.getRegion(region), clientConfiguration
                 )
         }

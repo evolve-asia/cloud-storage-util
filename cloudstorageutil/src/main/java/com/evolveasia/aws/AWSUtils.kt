@@ -86,7 +86,10 @@ class AWSUtils(
     ) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
-            onError(FileNotFoundException("Could not find the filepath of the selected file"), awsMetaInfo)
+            onError(
+                FileNotFoundException("Could not find the filepath of the selected file"),
+                awsMetaInfo
+            )
             onAwsImageUploadListener.onError(
                 FileNotFoundException("Could not find the filepath of the selected file"),
                 awsMetaInfo
@@ -95,12 +98,15 @@ class AWSUtils(
         }
 
         val oldExif = ExifInterface(awsMetaInfo.imageMetaInfo.imagePath)
-        val compressedImagePath = compressAwsImage(awsMetaInfo).first
-        val compressedBitmap = compressAwsImage(awsMetaInfo).second
+        val compressedImage = compressAwsImage(awsMetaInfo)
+        val compressedImagePath = compressedImage.first
+        val compressedBitmap = compressedImage.second
         val newExifOrientation = setImageOrientation(oldExif, compressedImagePath)
         if (newExifOrientation == null) {
             onError(
-                ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."), awsMetaInfo)
+                ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
+                awsMetaInfo
+            )
             onAwsImageUploadListener.onError(
                 ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
                 awsMetaInfo

@@ -21,14 +21,13 @@ import com.evolveasia.aws.AWSUtils
 import com.evolveasia.aws.AwsMetaInfo
 import java.net.URISyntaxException
 
-open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener {
+open class MainActivity : AppCompatActivity() {
 
     private var progressBar: ProgressBar? = null
     private val awsUtil by lazy { AWSUtils.get() }
 
     companion object {
-        private const val COGNITO_IDENTITY_ID: String =
-            "YOUR_COGNITO_IDENTITY_ID"
+        private const val COGNITO_IDENTITY_ID: String = "YOUR_COGNITO_IDENTITY_ID"
         private const val BUCKET_NAME: String = "YOUR_BUCKET_NAME"
         private const val COGNITO_REGION: String = "YOUR_COGNITO_REGION"
         private const val S3_URL: String = "https://$BUCKET_NAME.s3.$COGNITO_REGION.amazonaws.com/"
@@ -49,10 +48,7 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                     imageUrlList.forEach {
                         val path: String? = getPath(it!!)
                         val awsConfig = AwsMetaInfo.AWSConfig(
-                            BUCKET_NAME,
-                            COGNITO_IDENTITY_ID,
-                            COGNITO_REGION,
-                            S3_URL
+                            BUCKET_NAME, COGNITO_IDENTITY_ID, COGNITO_REGION, S3_URL
                         )
                         val gcsMetaData = AwsMetaInfo.Builder().apply {
                             serviceConfig = awsConfig
@@ -65,31 +61,38 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
                                 waterMarkInfo = getWaterMarkInfo()
                             }
                         }.build()
-                        awsUtil?.beginUpload(gcsMetaData, onSuccess = { url ->
-                            println("Uri itttttttt -> $url")
-                        }, onError = { error, awsMetaInfo ->
-                            println(error.message)
-                        })
+                        awsUtil?.beginUpload(gcsMetaData,
+                            showProgress = {
+                                progressBar?.visibility = View.VISIBLE
+                            },
+                            onSuccess = { url, awsMetaInfo ->
+                                progressBar?.visibility = View.GONE
+                                println("Uri itttttttt -> $url")
+                            }, onError = { error, awsMetaInfo ->
+                                println(error.message)
+                                progressBar?.visibility = View.GONE
+                            }, onProgressChanged = { id, currentByte, totalByte ->
+                                /*  val value = currentByte / totalByte
+                                    val percentage = value * 100
+                                    println("byte percentage---->${percentage.toInt()}")*/
+                            }, onStateChanged = { state ->
+
+                            })
                     }
                 }
             }
         }
 
-    override
-    fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        awsUtil?.setListener(this)
         progressBar = findViewById(R.id.progressBar)
         findViewById<AppCompatButton>(R.id.btn_upload).setOnClickListener {
             openCamera()
         }
         findViewById<AppCompatButton>(R.id.btn_read_folder).setOnClickListener {
             awsUtil?.listAllTheObjects(
-                BUCKET_NAME,
-                COGNITO_REGION,
-                COGNITO_IDENTITY_ID,
-                "FOLDER PATH HERE WITH"
+                BUCKET_NAME, COGNITO_REGION, COGNITO_IDENTITY_ID, "FOLDER PATH HERE WITH"
             ) { dataList ->
                 dataList.forEach { item ->
                     println("S3 image url--------> ${item.baseUrl}/${item.key}")
@@ -98,46 +101,10 @@ open class MainActivity : AppCompatActivity(), AWSUtils.OnAwsImageUploadListener
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        awsUtil?.setListener(this)
-    }
-
-    override fun onPause() {
-        awsUtil?.removeListener()
-        super.onPause()
-    }
-
-    override fun showProgress() {
-        progressBar?.visibility = View.VISIBLE
-    }
-
-    override fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float) {
-        /*   val value = currentByte / totalByte
-           val percentage = value * 100
-           println("byte percentage---->${percentage.toInt()}")*/
-    }
-
-    override fun onSuccess(imgUrl: String) {
-        progressBar?.visibility = View.GONE
-        println("ImageUrl-----------------------> $imgUrl  ------> ${System.currentTimeMillis()}")
-    }
-
-    override fun onError(error: Throwable, awsMetaInfo: AwsMetaInfo) {
-        progressBar?.visibility = View.GONE
-    }
-
-    override fun onStateChanged(state: String) {
-
-    }
-
     private fun openCamera() {
-        EvolveImagePicker
-            .with(this)
-            .start(
-                evolveActivityResultLauncher,
-                forceImageCapture = true
-            )
+        EvolveImagePicker.with(this).start(
+            evolveActivityResultLauncher, forceImageCapture = true
+        )
     }
 
     private fun getWaterMarkInfo(): AwsMetaInfo.WaterMarkInfo {

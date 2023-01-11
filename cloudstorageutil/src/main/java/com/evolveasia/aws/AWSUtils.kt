@@ -54,10 +54,12 @@ class AWSUtils private constructor(context: Context?) {
         return this.weakContext?.get()
     }
 
+    @Deprecated("replaced by kotlin-lamda function.")
     fun setListener(onAwsImageUploadListener: OnAwsImageUploadListener) {
         this.onAwsImageUploadListener = onAwsImageUploadListener
     }
 
+    @Deprecated("replaced by kotlin-lamda function.")
     fun removeListener() {
         this.onAwsImageUploadListener = null
     }
@@ -83,11 +85,11 @@ class AWSUtils private constructor(context: Context?) {
         }
 
         if (sS3Client == null) {
-            sS3Client =
-                AmazonS3Client(
-                    getCredProvider(context!!),
-                    Region.getRegion(awsMetaInfo.serviceConfig.region), clientConfiguration
-                )
+            sS3Client = AmazonS3Client(
+                getCredProvider(context!!),
+                Region.getRegion(awsMetaInfo.serviceConfig.region),
+                clientConfiguration
+            )
         }
         return sS3Client
     }
@@ -99,20 +101,20 @@ class AWSUtils private constructor(context: Context?) {
             // 10 threads for upload and download operations.
 
             // Initializes TransferUtility
-            mTransferUtility = TransferUtility
-                .builder()
-                .s3Client(getS3Client(context.applicationContext))
-                .context(context.applicationContext)
-                .transferUtilityOptions(tuOptions)
-                .build()
+            mTransferUtility =
+                TransferUtility.builder().s3Client(getS3Client(context.applicationContext))
+                    .context(context.applicationContext).transferUtilityOptions(tuOptions).build()
         }
         return mTransferUtility
     }
 
     fun beginUpload(
         awsMetaInfo: AwsMetaInfo,
-        onSuccess: (String) -> Unit,
-        onError: (Throwable, AwsMetaInfo) -> Unit
+        showProgress: () -> Unit,
+        onSuccess: (String, AwsMetaInfo) -> Unit,
+        onError: (Throwable, AwsMetaInfo) -> Unit,
+        onStateChanged: (String) -> Unit,
+        onProgressChanged: (Int, byteCurrent: Float, byteTotal: Float) -> Unit,
     ) {
         this.awsMetaInfo = awsMetaInfo
         if (TextUtils.isEmpty(awsMetaInfo.imageMetaInfo.imagePath)) {
@@ -120,10 +122,10 @@ class AWSUtils private constructor(context: Context?) {
                 FileNotFoundException("Could not find the filepath of the selected file"),
                 awsMetaInfo
             )
-            onAwsImageUploadListener?.onError(
-                FileNotFoundException("Could not find the filepath of the selected file"),
-                awsMetaInfo
-            )
+            /* onAwsImageUploadListener?.onError(
+                 FileNotFoundException("Could not find the filepath of the selected file"),
+                 awsMetaInfo
+             )*/
             return
         }
 
@@ -137,10 +139,10 @@ class AWSUtils private constructor(context: Context?) {
                 ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
                 awsMetaInfo
             )
-            onAwsImageUploadListener?.onError(
-                ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
-                awsMetaInfo
-            )
+            /* onAwsImageUploadListener?.onError(
+                 ImageCorruptedException("Cannot change orientation of image. Image may be corrupted."),
+                 awsMetaInfo
+             )*/
             return
         }
         try {
@@ -169,11 +171,7 @@ class AWSUtils private constructor(context: Context?) {
             } else {
                 if (compressedBitmap != null) {
                     val newBitmap = Bitmap.createBitmap(
-                        compressedBitmap,
-                        0,
-                        0,
-                        compressedBitmap.width,
-                        compressedBitmap.height
+                        compressedBitmap, 0, 0, compressedBitmap.width, compressedBitmap.height
                     )
                     if (newBitmap != null) {
                         // newBitmap will be recycled inside addAwsWaterMark function
@@ -205,7 +203,8 @@ class AWSUtils private constructor(context: Context?) {
 
         val file = File(awsMetaInfo.imageMetaInfo.imagePath)
         imageFile = file
-        onAwsImageUploadListener?.showProgress()
+//        onAwsImageUploadListener?.showProgress()
+        showProgress()
 
         observer = getContext()?.let {
             getTransferUtility(it)?.upload(
@@ -213,37 +212,50 @@ class AWSUtils private constructor(context: Context?) {
                 "${awsMetaInfo.awsFolderPath}/${imageFile?.name}", imageFile
             )
         }
-        observer?.setTransferListener(UploadListener(onSuccess))
+        observer?.setTransferListener(
+            UploadListener(
+                onSuccess, onError, onStateChanged, onProgressChanged
+            )
+        )
     }
 
-    private inner class UploadListener(private val onSuccess: (String) -> Unit) : TransferListener {
+    private inner class UploadListener(
+        private val onSuccess: (String, AwsMetaInfo) -> Unit,
+        private val onError: (Throwable, AwsMetaInfo) -> Unit,
+        private val onStateChanged: (String) -> Unit,
+        private val onProgressChanged: (Int, byteCurrent: Float, byteTotal: Float) -> Unit,
+    ) : TransferListener {
         override fun onError(id: Int, e: Exception) {
-            onAwsImageUploadListener?.onError(e, awsMetaInfo)
+//            onAwsImageUploadListener?.onError(e, awsMetaInfo)
+            onError(e, awsMetaInfo)
         }
 
         override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
-            onAwsImageUploadListener?.onProgressChanged(
-                id,
-                bytesCurrent.toFloat(),
-                bytesTotal.toFloat()
-            )
+            onProgressChanged(id, bytesCurrent.toFloat(), bytesTotal.toFloat())
+            /* onAwsImageUploadListener?.onProgressChanged(
+                 id,
+                 bytesCurrent.toFloat(),
+                 bytesTotal.toFloat()
+             )*/
         }
 
         override fun onStateChanged(id: Int, newState: TransferState) {
             if (newState == TransferState.COMPLETED) {
                 val finalImageUrl =
                     "${awsMetaInfo.serviceConfig.url}${awsMetaInfo.awsFolderPath}/${imageFile?.name}"
-                onAwsImageUploadListener?.onSuccess(finalImageUrl)
-                onSuccess(finalImageUrl)
+//                onAwsImageUploadListener?.onSuccess(finalImageUrl)
+                onSuccess(finalImageUrl, awsMetaInfo)
             } else if (newState == TransferState.CANCELED) {
-                onAwsImageUploadListener?.onStateChanged(getState(newState))
+//                onAwsImageUploadListener?.onStateChanged(getState(newState))
+                onStateChanged(getState(newState))
             } else if (newState == TransferState.FAILED) {
                 if (retryCount != MAX_RETRY_COUNT) {
                     retryCount += 1
                     observer = mTransferUtility?.resume(id)
                     observer?.setTransferListener(this)
                 } else {
-                    onAwsImageUploadListener?.onStateChanged(getState(newState))
+//                    onAwsImageUploadListener?.onStateChanged(getState(newState))
+                    onStateChanged(getState(newState))
                 }
             }
         }
@@ -253,9 +265,10 @@ class AWSUtils private constructor(context: Context?) {
         return try {
             val byteArray = streamToByteArray(FileInputStream(awsMetaInfo.imageMetaInfo.imagePath))
             val bitmap = decodeSampledBitmapFromResource(
-                byteArray, awsMetaInfo.imageMetaInfo.imageWidth
-                    ?: AwsConstant.DEFAULT_IMAGE_WIDTH, awsMetaInfo.imageMetaInfo.imageHeight
-                    ?: AwsConstant.DEFAULT_IMAGE_HEIGHT, awsMetaInfo.imageMetaInfo.waterMarkInfo
+                byteArray,
+                awsMetaInfo.imageMetaInfo.imageWidth ?: AwsConstant.DEFAULT_IMAGE_WIDTH,
+                awsMetaInfo.imageMetaInfo.imageHeight ?: AwsConstant.DEFAULT_IMAGE_HEIGHT,
+                awsMetaInfo.imageMetaInfo.waterMarkInfo
             )
 
             val stream = ByteArrayOutputStream()
@@ -326,8 +339,7 @@ class AWSUtils private constructor(context: Context?) {
                 newExif.setAttribute(ExifInterface.TAG_ORIENTATION, exifOrientation)
                 newExif.saveAttributes()
                 return newExif.getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_UNDEFINED
+                    ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED
                 )
             }
 
@@ -356,24 +368,21 @@ class AWSUtils private constructor(context: Context?) {
 
         if (sCredProvider == null) {
             sCredProvider = CognitoCachingCredentialsProvider(
-                getContext()?.applicationContext,
-                poolId,
-                getRegion(region)
+                getContext()?.applicationContext, poolId, getRegion(region)
             )
         }
 
         if (sS3Client == null) {
-            sS3Client =
-                AmazonS3Client(
-                    getContext()?.let { getCredProvider(it) },
-                    Region.getRegion(region), clientConfiguration
-                )
+            sS3Client = AmazonS3Client(
+                getContext()?.let { getCredProvider(it) },
+                Region.getRegion(region),
+                clientConfiguration
+            )
         }
 
         Thread {
             try {
-                val listing: ListObjectsV2Result =
-                    sS3Client!!.listObjectsV2(req)
+                val listing: ListObjectsV2Result = sS3Client!!.listObjectsV2(req)
                 for (commonPrefix in listing.commonPrefixes) {
                     println("Common prefix--->$commonPrefix")
                 }
@@ -402,6 +411,7 @@ class AWSUtils private constructor(context: Context?) {
         }.start()
     }
 
+    @Deprecated("This listener won't work from version (2.2.2), replaced by kotlin-lamda function.")
     interface OnAwsImageUploadListener {
         fun showProgress()
         fun onProgressChanged(id: Int, currentByte: Float, totalByte: Float)

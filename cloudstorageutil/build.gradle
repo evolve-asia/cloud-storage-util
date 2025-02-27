@@ -8,7 +8,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        namespace "com.evolveasia.cloudstorageutil"
+        namespace "com.evolveasia.aws"
         minSdkVersion 24
         targetSdkVersion 34
         versionCode 1
